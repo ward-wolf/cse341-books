@@ -27,9 +27,13 @@ const createAuthor = async (author) => {
 const updateAuthor = async (id, author) => {
   const db = getDb();
   const collection = db.collection('authors');
-  await collection.updateOne({ id }, { $set: author });
+  const updatedAuthor = await collection.findOneAndUpdate(
+    { id },
+    { $set: author },
+    { returnDocument: 'after' }
+  );
 
-  return { id, ...author };
+  return updatedAuthor;
 };
 
 const deleteAuthor = async (id) => {
@@ -43,9 +47,10 @@ const deleteAuthor = async (id) => {
 const authorHasBooks = async (id) => {
   const db = getDb();
   const collection = db.collection('books');
-  const count = await collection.countDocuments({ authorId: id });
+  // findOne uses the authorId index and stops at the first matching book.
+  const book = await collection.findOne({ authorId: id }, { projection: { _id: 1 } });
 
-  return count > 0;
+  return book !== null;
 };
 
 const createAuthorIndexes = async () => {
