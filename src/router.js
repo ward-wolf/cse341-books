@@ -54,6 +54,57 @@ const router = express.Router();
  *         - title
  *         - authorId
  *         - publicationDate
+ *     BookCreate:
+ *       type: object
+ *       description: Request body for creating a book. No other fields are allowed.
+ *       additionalProperties: false
+ *       properties:
+ *         id:
+ *           type: string
+ *           maxLength: 20
+ *           example: b4
+ *         authorId:
+ *           type: string
+ *           maxLength: 20
+ *           description: Must match the `id` of an existing author.
+ *           example: a1
+ *         title:
+ *           type: string
+ *           maxLength: 200
+ *           example: Example Book Title
+ *         publicationDate:
+ *           type: string
+ *           format: date
+ *           description: A real calendar date in YYYY-MM-DD format.
+ *           example: "2026-01-15"
+ *       required:
+ *         - id
+ *         - authorId
+ *         - title
+ *         - publicationDate
+ *     BookUpdate:
+ *       type: object
+ *       description: Request body for updating a book. Every field is required, and `id` cannot be changed.
+ *       additionalProperties: false
+ *       properties:
+ *         authorId:
+ *           type: string
+ *           maxLength: 20
+ *           description: Must match the `id` of an existing author.
+ *           example: a2
+ *         title:
+ *           type: string
+ *           maxLength: 200
+ *           example: Updated Book Title
+ *         publicationDate:
+ *           type: string
+ *           format: date
+ *           description: A real calendar date in YYYY-MM-DD format.
+ *           example: "2026-02-20"
+ *       required:
+ *         - authorId
+ *         - title
+ *         - publicationDate
  *     ErrorResponse:
  *       type: object
  *       properties:
@@ -146,22 +197,7 @@ router.get('/books/:id', getBookByIdHandler);
  *       content:
  *         application/json:
  *           schema:
- *             type: object
- *             required:
- *               - id
- *               - authorId
- *               - title
- *               - publicationDate
- *             properties:
- *               id:
- *                 type: string
- *               authorId:
- *                 type: string
- *               title:
- *                 type: string
- *               publicationDate:
- *                 type: string
- *                 format: date
+ *             $ref: '#/components/schemas/BookCreate'
  *           example:
  *             id: b4
  *             authorId: a1
@@ -175,24 +211,52 @@ router.get('/books/:id', getBookByIdHandler);
  *             schema:
  *               $ref: '#/components/schemas/Book'
  *       400:
- *         description: A required field is missing, the authorId does not match an existing author, or the id already exists
+ *         description: The request body is invalid or the authorId does not match an existing author. Only the first problem found is returned.
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  *             examples:
+ *               invalidJson:
+ *                 summary: Body is not valid JSON
+ *                 value:
+ *                   message: Request body must be valid JSON
+ *               notObject:
+ *                 summary: Body is not a JSON object
+ *                 value:
+ *                   message: Request body must be a JSON object
+ *               unknownField:
+ *                 summary: Field is not allowed
+ *                 value:
+ *                   message: "Unknown field: _id"
  *               missingField:
- *                 summary: Missing field
+ *                 summary: Required field is missing
  *                 value:
  *                   message: title is required
+ *               notString:
+ *                 summary: Field is not a string
+ *                 value:
+ *                   message: title must be a string
+ *               tooLong:
+ *                 summary: Field is too long
+ *                 value:
+ *                   message: title must be at most 200 characters
+ *               invalidDate:
+ *                 summary: publicationDate is not a valid date
+ *                 value:
+ *                   message: publicationDate must be a valid date in YYYY-MM-DD format
  *               unknownAuthor:
- *                 summary: Unknown author
+ *                 summary: authorId does not match an author
  *                 value:
  *                   message: authorId does not match an existing author
- *               duplicateId:
- *                 summary: Duplicate id
- *                 value:
- *                   message: A book with this id already exists
+ *       409:
+ *         description: A book with this id already exists
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             example:
+ *               message: A book with this id already exists
  *       500:
  *         description: Unable to create book
  *         content:
@@ -225,19 +289,7 @@ router.post('/books', createBookHandler);
  *       content:
  *         application/json:
  *           schema:
- *             type: object
- *             required:
- *               - authorId
- *               - title
- *               - publicationDate
- *             properties:
- *               authorId:
- *                 type: string
- *               title:
- *                 type: string
- *               publicationDate:
- *                 type: string
- *                 format: date
+ *             $ref: '#/components/schemas/BookUpdate'
  *           example:
  *             authorId: a2
  *             title: Updated Book Title
@@ -250,18 +302,46 @@ router.post('/books', createBookHandler);
  *             schema:
  *               $ref: '#/components/schemas/Book'
  *       400:
- *         description: A required field is missing or the authorId does not match an existing author
+ *         description: The request body is invalid or the authorId does not match an existing author. Only the first problem found is returned, and body problems are reported before a missing book.
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  *             examples:
- *               missingField:
- *                 summary: Missing field
+ *               invalidJson:
+ *                 summary: Body is not valid JSON
  *                 value:
- *                   message: title is required
+ *                   message: Request body must be valid JSON
+ *               notObject:
+ *                 summary: Body is not a JSON object
+ *                 value:
+ *                   message: Request body must be a JSON object
+ *               idInBody:
+ *                 summary: Body contains id
+ *                 value:
+ *                   message: id cannot be changed
+ *               unknownField:
+ *                 summary: Field is not allowed
+ *                 value:
+ *                   message: "Unknown field: isAdmin"
+ *               missingField:
+ *                 summary: Required field is missing
+ *                 value:
+ *                   message: publicationDate is required
+ *               notString:
+ *                 summary: Field is not a string
+ *                 value:
+ *                   message: title must be a string
+ *               tooLong:
+ *                 summary: Field is too long
+ *                 value:
+ *                   message: title must be at most 200 characters
+ *               invalidDate:
+ *                 summary: publicationDate is not a valid date
+ *                 value:
+ *                   message: publicationDate must be a valid date in YYYY-MM-DD format
  *               unknownAuthor:
- *                 summary: Unknown author
+ *                 summary: authorId does not match an author
  *                 value:
  *                   message: authorId does not match an existing author
  *       404:

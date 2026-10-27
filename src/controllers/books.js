@@ -1,20 +1,8 @@
 import { getAllBooks, getBookById, createBook, updateBook, deleteBook } from "../models/books.js";
 import { getAuthorById } from "../models/authors.js";
+import { validateBook } from "../validators/books.js";
 
 const DUPLICATE_KEY_ERROR = 11000;
-
-// A field is missing if it is absent, null, or a blank string.
-const isMissing = (value) => {
-  return value === undefined || value === null || (typeof value === 'string' && value.trim() === '');
-};
-
-// Returns the first "<field> is required" message, or null if every field is present.
-const findMissingField = (body, fields) => {
-  const missingField = fields.find((field) => {
-    return isMissing(body[field]);
-  });
-  return missingField ? `${missingField} is required` : null;
-};
 
 const getBooksHandler = async (req, res) => {
   try {
@@ -44,27 +32,24 @@ const getBookByIdHandler = async (req, res) => {
 };
 
 const createBookHandler = async (req, res) => {
-  const body = req.body ?? {};
-  const missingFieldMessage = findMissingField(body, ['id', 'authorId', 'title', 'publicationDate']);
+  const { error: validationError, value: newBook } = validateBook(req.body);
 
-  if (missingFieldMessage) {
-    return res.status(400).json({ message: missingFieldMessage });
+  if (validationError) {
+    return res.status(400).json({ message: validationError });
   }
 
-  const { id, authorId, title, publicationDate } = body;
-
   try {
-    const author = await getAuthorById(authorId);
+    const author = await getAuthorById(newBook.authorId);
 
     if (!author) {
       return res.status(400).json({ message: 'authorId does not match an existing author' });
     }
 
-    const book = await createBook({ id, authorId, title, publicationDate });
+    const book = await createBook(newBook);
     return res.status(201).json(book);
   } catch (error) {
     if (error.code === DUPLICATE_KEY_ERROR) {
-      return res.status(400).json({ message: 'A book with this id already exists' });
+      return res.status(409).json({ message: 'A book with this id already exists' });
     }
 
     console.error('POST /books failed:', error.message);
@@ -74,23 +59,20 @@ const createBookHandler = async (req, res) => {
 
 const updateBookHandler = async (req, res) => {
   const requestedId = req.params.id;
-  const body = req.body ?? {};
-  const missingFieldMessage = findMissingField(body, ['authorId', 'title', 'publicationDate']);
+  const { error: validationError, value: updates } = validateBook(req.body, { isUpdate: true });
 
-  if (missingFieldMessage) {
-    return res.status(400).json({ message: missingFieldMessage });
+  if (validationError) {
+    return res.status(400).json({ message: validationError });
   }
 
-  const { authorId, title, publicationDate } = body;
-
   try {
-    const author = await getAuthorById(authorId);
+    const author = await getAuthorById(updates.authorId);
 
     if (!author) {
       return res.status(400).json({ message: 'authorId does not match an existing author' });
     }
 
-    const book = await updateBook(requestedId, { authorId, title, publicationDate });
+    const book = await updateBook(requestedId, updates);
 
     if (!book) {
       return res.status(404).json({ message: 'Book not found' });
