@@ -1,5 +1,7 @@
 import app from './app.js';
 import { connectToDb } from './src/db/connect.js';
+import { createBookIndexes } from './src/models/books.js';
+import { createAuthorIndexes } from './src/models/authors.js';
 
 const PORT = process.env.PORT;
 
@@ -10,6 +12,8 @@ if (!PORT) {
 const startServer = async () => {
   try {
     await connectToDb();
+    await createBookIndexes();
+    await createAuthorIndexes();
 
     app.listen(PORT, () => {
       console.log(`Server listening on port ${PORT}`);
