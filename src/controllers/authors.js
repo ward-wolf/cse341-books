@@ -6,13 +6,17 @@ import {
   deleteAuthor as deleteAuthorFromDb,
   authorHasBooks,
 } from '../models/authors.js';
+import { validateAuthor } from '../validators/authors.js';
+
+const DUPLICATE_KEY_ERROR = 11000;
 
 const getAllAuthors = async (req, res) => {
   try {
     const authors = await getAllAuthorsFromDb();
     return res.status(200).json(authors);
   } catch (error) {
-    return res.status(500).json({ message: 'Unable to retrieve authors.' });
+    console.error('GET /authors failed:', error.message);
+    return res.status(500).json({ message: 'Internal server error' });
   }
 };
 
@@ -22,53 +26,54 @@ const getAuthorById = async (req, res) => {
     const author = await getAuthorByIdFromDb(id);
 
     if (!author) {
-      return res.status(404).json({ message: 'Author not found.' });
+      return res.status(404).json({ message: 'Author not found' });
     }
 
     return res.status(200).json(author);
   } catch (error) {
-    return res.status(500).json({ message: 'Unable to retrieve author.' });
+    console.error('GET /authors/:id failed:', error.message);
+    return res.status(500).json({ message: 'Internal server error' });
   }
 };
 
 const createAuthor = async (req, res) => {
   try {
-    const { id, name, birthYear } = req.body;
+    const { error: validationError, value: newAuthor } = validateAuthor(req.body);
 
-    if (!id || !name || birthYear === undefined) {
-      return res.status(400).json({ message: 'Missing required author fields.' });
+    if (validationError) {
+      return res.status(400).json({ message: validationError });
     }
 
-    const existingAuthor = await getAuthorByIdFromDb(id);
-    if (existingAuthor) {
-      return res.status(400).json({ message: 'Author id already exists.' });
-    }
-
-    const createdAuthor = await createAuthorFromDb({ id, name, birthYear });
+    const createdAuthor = await createAuthorFromDb(newAuthor);
     return res.status(201).json(createdAuthor);
   } catch (error) {
-    return res.status(500).json({ message: 'Unable to create author.' });
+    if (error.code === DUPLICATE_KEY_ERROR) {
+      return res.status(409).json({ message: 'An author with this id already exists' });
+    }
+
+    console.error('POST /authors failed:', error.message);
+    return res.status(500).json({ message: 'Internal server error' });
   }
 };
 
 const updateAuthor = async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, birthYear } = req.body;
+    const { error: validationError, value: updates } = validateAuthor(req.body, { isUpdate: true });
 
-    if (!name || birthYear === undefined) {
-      return res.status(400).json({ message: 'Missing required author fields.' });
+    if (validationError) {
+      return res.status(400).json({ message: validationError });
     }
 
-    const existingAuthor = await getAuthorByIdFromDb(id);
-    if (!existingAuthor) {
-      return res.status(404).json({ message: 'Author not found.' });
+    const updatedAuthor = await updateAuthorFromDb(id, updates);
+    if (!updatedAuthor) {
+      return res.status(404).json({ message: 'Author not found' });
     }
 
-    const updatedAuthor = await updateAuthorFromDb(id, { name, birthYear });
     return res.status(200).json(updatedAuthor);
   } catch (error) {
-    return res.status(500).json({ message: 'Unable to update author.' });
+    console.error('PUT /authors/:id failed:', error.message);
+    return res.status(500).json({ message: 'Internal server error' });
   }
 };
 
@@ -76,19 +81,19 @@ const deleteAuthor = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const existingAuthor = await getAuthorByIdFromDb(id);
-    if (!existingAuthor) {
-      return res.status(404).json({ message: 'Author not found.' });
-    }
-
     if (await authorHasBooks(id)) {
-      return res.status(409).json({ message: 'Author cannot be deleted because they still have books.' });
+      return res.status(409).json({ message: 'Cannot delete an author who still has books' });
     }
 
-    await deleteAuthorFromDb(id);
+    const result = await deleteAuthorFromDb(id);
+    if (result.deletedCount === 0) {
+      return res.status(404).json({ message: 'Author not found' });
+    }
+
     return res.status(204).send();
   } catch (error) {
-    return res.status(500).json({ message: 'Unable to delete author.' });
+    console.error('DELETE /authors/:id failed:', error.message);
+    return res.status(500).json({ message: 'Internal server error' });
   }
 };
 

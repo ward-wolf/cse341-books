@@ -21,6 +21,8 @@ const router = express.Router();
  * tags:
  *   - name: Books
  *     description: Create, read, update, and delete books in the books collection
+ *   - name: Authors
+ *     description: Create, read, update, and delete authors in the authors collection
  *
  * components:
  *   schemas:
@@ -105,6 +107,66 @@ const router = express.Router();
  *         - authorId
  *         - title
  *         - publicationDate
+ *     Author:
+ *       type: object
+ *       description: An author document from the authors collection.
+ *       properties:
+ *         _id:
+ *           type: string
+ *           description: MongoDB ObjectId assigned by the database.
+ *           example: 6650f1a2b3c4d5e6f7a8b9c0
+ *         id:
+ *           type: string
+ *           description: Application-level author identifier used by GET /authors/{id} and by a book's `authorId`.
+ *           example: a1
+ *         name:
+ *           type: string
+ *           example: Jane Austen
+ *         birthYear:
+ *           type: integer
+ *           example: 1775
+ *       required:
+ *         - _id
+ *         - id
+ *         - name
+ *         - birthYear
+ *     AuthorCreate:
+ *       type: object
+ *       description: Request body for creating an author. No other fields are allowed.
+ *       additionalProperties: false
+ *       properties:
+ *         id:
+ *           type: string
+ *           maxLength: 20
+ *           example: a4
+ *         name:
+ *           type: string
+ *           maxLength: 100
+ *           example: Example Author Name
+ *         birthYear:
+ *           type: integer
+ *           description: A whole number. Strings such as "1965" are rejected.
+ *           example: 1965
+ *       required:
+ *         - id
+ *         - name
+ *         - birthYear
+ *     AuthorUpdate:
+ *       type: object
+ *       description: Request body for updating an author. Every field is required, and `id` cannot be changed.
+ *       additionalProperties: false
+ *       properties:
+ *         name:
+ *           type: string
+ *           maxLength: 100
+ *           example: Updated Author Name
+ *         birthYear:
+ *           type: integer
+ *           description: A whole number. Strings such as "1970" are rejected.
+ *           example: 1970
+ *       required:
+ *         - name
+ *         - birthYear
  *     ErrorResponse:
  *       type: object
  *       properties:
@@ -405,14 +467,27 @@ router.delete('/books/:id', deleteBookHandler);
  * @openapi
  * /authors:
  *   get:
- *     summary: Get all authors
  *     tags:
  *       - Authors
+ *     summary: Get all authors
+ *     description: Returns every author in the authors collection.
  *     responses:
  *       200:
- *         description: A list of authors
+ *         description: Authors returned successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Author'
  *       500:
  *         description: Unable to retrieve authors
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             example:
+ *               message: Internal server error
  */
 router.get('/authors', getAllAuthors);
 
@@ -420,23 +495,41 @@ router.get('/authors', getAllAuthors);
  * @openapi
  * /authors/{id}:
  *   get:
- *     summary: Get author by ID
  *     tags:
  *       - Authors
+ *     summary: Get an author by id
+ *     description: Returns the author whose `id` field matches the path parameter.
  *     parameters:
  *       - in: path
  *         name: id
  *         required: true
+ *         description: The author's `id` field (not the MongoDB `_id`).
  *         schema:
  *           type: string
- *         description: The author ID.
+ *         example: a1
  *     responses:
  *       200:
- *         description: A single author
+ *         description: Author returned successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Author'
  *       404:
  *         description: Author not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             example:
+ *               message: Author not found
  *       500:
  *         description: Unable to retrieve author
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             example:
+ *               message: Internal server error
  */
 router.get('/authors/:id', getAuthorById);
 
@@ -444,37 +537,78 @@ router.get('/authors/:id', getAuthorById);
  * @openapi
  * /authors:
  *   post:
- *     summary: Create an author
  *     tags:
  *       - Authors
+ *     summary: Create an author
+ *     description: Creates an author.
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
- *             type: object
- *             required:
- *               - id
- *               - name
- *               - birthYear
- *             properties:
- *               id:
- *                 type: string
- *               name:
- *                 type: string
- *               birthYear:
- *                 type: number
+ *             $ref: '#/components/schemas/AuthorCreate'
  *           example:
  *             id: a4
- *             name: Example Author
- *             birthYear: 1980
+ *             name: Example Author Name
+ *             birthYear: 1965
  *     responses:
  *       201:
- *         description: Author created
+ *         description: Author created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Author'
  *       400:
- *         description: Missing required author fields or author ID already exists
+ *         description: The request body is invalid. Only the first problem found is returned.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             examples:
+ *               invalidJson:
+ *                 summary: Body is not valid JSON
+ *                 value:
+ *                   message: Request body must be valid JSON
+ *               notObject:
+ *                 summary: Body is not a JSON object
+ *                 value:
+ *                   message: Request body must be a JSON object
+ *               unknownField:
+ *                 summary: Field is not allowed
+ *                 value:
+ *                   message: "Unknown field: _id"
+ *               missingField:
+ *                 summary: Required field is missing
+ *                 value:
+ *                   message: name is required
+ *               notString:
+ *                 summary: name is not a string
+ *                 value:
+ *                   message: name must be a string
+ *               tooLong:
+ *                 summary: name is too long
+ *                 value:
+ *                   message: name must be at most 100 characters
+ *               notInteger:
+ *                 summary: birthYear is not a whole number
+ *                 value:
+ *                   message: birthYear must be an integer
+ *       409:
+ *         description: An author with this id already exists
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             example:
+ *               message: An author with this id already exists
  *       500:
  *         description: Unable to create author
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             example:
+ *               message: Internal server error
  */
 router.post('/authors', createAuthor);
 
@@ -482,42 +616,89 @@ router.post('/authors', createAuthor);
  * @openapi
  * /authors/{id}:
  *   put:
- *     summary: Update an author by ID
  *     tags:
  *       - Authors
+ *     summary: Update an author by id
+ *     description: Updates the author whose `id` field matches the path parameter. The author's `id` cannot be changed.
  *     parameters:
  *       - in: path
  *         name: id
  *         required: true
+ *         description: The author's `id` field (not the MongoDB `_id`).
  *         schema:
  *           type: string
- *         description: The author ID.
+ *         example: a1
  *     requestBody:
  *       required: true
  *       content:
  *         application/json:
  *           schema:
- *             type: object
- *             required:
- *               - name
- *               - birthYear
- *             properties:
- *               name:
- *                 type: string
- *               birthYear:
- *                 type: number
+ *             $ref: '#/components/schemas/AuthorUpdate'
  *           example:
- *             name: Updated Author
- *             birthYear: 1981
+ *             name: Updated Author Name
+ *             birthYear: 1970
  *     responses:
  *       200:
- *         description: Author updated
+ *         description: Author updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Author'
  *       400:
- *         description: Missing required author fields
+ *         description: The request body is invalid. Only the first problem found is returned, and body problems are reported before a missing author.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             examples:
+ *               invalidJson:
+ *                 summary: Body is not valid JSON
+ *                 value:
+ *                   message: Request body must be valid JSON
+ *               notObject:
+ *                 summary: Body is not a JSON object
+ *                 value:
+ *                   message: Request body must be a JSON object
+ *               idInBody:
+ *                 summary: Body contains id
+ *                 value:
+ *                   message: id cannot be changed
+ *               unknownField:
+ *                 summary: Field is not allowed
+ *                 value:
+ *                   message: "Unknown field: isAdmin"
+ *               missingField:
+ *                 summary: Required field is missing
+ *                 value:
+ *                   message: birthYear is required
+ *               notString:
+ *                 summary: name is not a string
+ *                 value:
+ *                   message: name must be a string
+ *               tooLong:
+ *                 summary: name is too long
+ *                 value:
+ *                   message: name must be at most 100 characters
+ *               notInteger:
+ *                 summary: birthYear is not a whole number
+ *                 value:
+ *                   message: birthYear must be an integer
  *       404:
  *         description: Author not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             example:
+ *               message: Author not found
  *       500:
  *         description: Unable to update author
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             example:
+ *               message: Internal server error
  */
 router.put('/authors/:id', updateAuthor);
 
@@ -525,25 +706,45 @@ router.put('/authors/:id', updateAuthor);
  * @openapi
  * /authors/{id}:
  *   delete:
- *     summary: Delete an author by ID
  *     tags:
  *       - Authors
+ *     summary: Delete an author by id
+ *     description: Deletes the author whose `id` field matches the path parameter. An author who still has books cannot be deleted.
  *     parameters:
  *       - in: path
  *         name: id
  *         required: true
+ *         description: The author's `id` field (not the MongoDB `_id`).
  *         schema:
  *           type: string
- *         description: The author ID.
+ *         example: a1
  *     responses:
  *       204:
- *         description: Author deleted
+ *         description: Author deleted successfully
  *       404:
  *         description: Author not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             example:
+ *               message: Author not found
  *       409:
- *         description: Author cannot be deleted because they still have books
+ *         description: One or more books still reference the author
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             example:
+ *               message: Cannot delete an author who still has books
  *       500:
  *         description: Unable to delete author
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             example:
+ *               message: Internal server error
  */
 router.delete('/authors/:id', deleteAuthor);
 
