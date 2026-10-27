@@ -14,6 +14,13 @@ const getBookById = async (bookId) => {
   return book;
 };
 
+const getBooksByAuthorId = async (authorId) => {
+  const db = getDb();
+  const collection = db.collection('books');
+  const books = await collection.find({ authorId }).toArray();
+  return books;
+};
+
 const createBook = async (book) => {
   const db = getDb();
   const collection = db.collection('books');
@@ -46,4 +53,4 @@ const createBookIndexes = async () => {
   await collection.createIndex({ authorId: 1 });
 };
 
-export { getAllBooks, getBookById, createBook, updateBook, deleteBook, createBookIndexes };
+export { getAllBooks, getBookById, getBooksByAuthorId, createBook, updateBook, deleteBook, createBookIndexes };

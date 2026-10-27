@@ -9,6 +9,7 @@ import {
 import {
 	getAllAuthors,
 	getAuthorById,
+	getAuthorBooks,
 	createAuthor,
 	updateAuthor,
 	deleteAuthor,
@@ -532,6 +533,50 @@ router.get('/authors', getAllAuthors);
  *               message: Internal server error
  */
 router.get('/authors/:id', getAuthorById);
+
+/**
+ * @openapi
+ * /authors/{id}/books:
+ *   get:
+ *     tags:
+ *       - Authors
+ *     summary: Get an author's books
+ *     description: Returns every book whose `authorId` matches the author's `id`, or an empty array if the author has no books. Use this to see which books are blocking an author from being deleted.
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         description: The author's `id` field (not the MongoDB `_id`).
+ *         schema:
+ *           type: string
+ *         example: a1
+ *     responses:
+ *       200:
+ *         description: The author's books returned successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Book'
+ *       404:
+ *         description: Author not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             example:
+ *               message: Author not found
+ *       500:
+ *         description: Unable to retrieve the author's books
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             example:
+ *               message: Internal server error
+ */
+router.get('/authors/:id/books', getAuthorBooks);
 
 /**
  * @openapi
