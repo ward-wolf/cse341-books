@@ -6,6 +6,7 @@ import {
   deleteAuthor as deleteAuthorFromDb,
   authorHasBooks,
 } from '../models/authors.js';
+import { getBooksByAuthorId } from '../models/books.js';
 import { validateAuthor } from '../validators/authors.js';
 
 const DUPLICATE_KEY_ERROR = 11000;
@@ -32,6 +33,23 @@ const getAuthorById = async (req, res) => {
     return res.status(200).json(author);
   } catch (error) {
     console.error('GET /authors/:id failed:', error.message);
+    return res.status(500).json({ message: 'Internal server error' });
+  }
+};
+
+const getAuthorBooks = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const author = await getAuthorByIdFromDb(id);
+
+    if (!author) {
+      return res.status(404).json({ message: 'Author not found' });
+    }
+
+    const books = await getBooksByAuthorId(id);
+    return res.status(200).json(books);
+  } catch (error) {
+    console.error('GET /authors/:id/books failed:', error.message);
     return res.status(500).json({ message: 'Internal server error' });
   }
 };
@@ -97,4 +115,4 @@ const deleteAuthor = async (req, res) => {
   }
 };
 
-export { getAllAuthors, getAuthorById, createAuthor, updateAuthor, deleteAuthor };
+export { getAllAuthors, getAuthorById, getAuthorBooks, createAuthor, updateAuthor, deleteAuthor };
