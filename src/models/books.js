@@ -14,4 +14,11 @@ const getBookById = async (bookId) => {
   return book;
 };
 
-export { getAllBooks, getBookById };
+const createBookIndexes = async () => {
+  const db = getDb();
+  const collection = db.collection('books');
+  await collection.createIndex({ id: 1 }, { unique: true });
+  await collection.createIndex({ authorId: 1 });
+};
+
+export { getAllBooks, getBookById, createBookIndexes };
