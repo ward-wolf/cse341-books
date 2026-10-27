@@ -1,5 +1,11 @@
 import express from 'express';
-import { getBooksHandler, getBookByIdHandler } from './controllers/books.js';
+import {
+	getBooksHandler,
+	getBookByIdHandler,
+	createBookHandler,
+	updateBookHandler,
+	deleteBookHandler,
+} from './controllers/books.js';
 import {
 	getAllAuthors,
 	getAuthorById,
@@ -14,7 +20,7 @@ const router = express.Router();
  * @openapi
  * tags:
  *   - name: Books
- *     description: Read books from the books collection
+ *     description: Create, read, update, and delete books in the books collection
  *
  * components:
  *   schemas:
@@ -126,6 +132,194 @@ router.get('/books', getBooksHandler);
  *               message: Internal server error
  */
 router.get('/books/:id', getBookByIdHandler);
+
+/**
+ * @openapi
+ * /books:
+ *   post:
+ *     tags:
+ *       - Books
+ *     summary: Create a book
+ *     description: Creates a book. The `authorId` must match the `id` of an existing author.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - id
+ *               - authorId
+ *               - title
+ *               - publicationDate
+ *             properties:
+ *               id:
+ *                 type: string
+ *               authorId:
+ *                 type: string
+ *               title:
+ *                 type: string
+ *               publicationDate:
+ *                 type: string
+ *                 format: date
+ *           example:
+ *             id: b4
+ *             authorId: a1
+ *             title: Example Book Title
+ *             publicationDate: "2026-01-15"
+ *     responses:
+ *       201:
+ *         description: Book created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Book'
+ *       400:
+ *         description: A required field is missing, the authorId does not match an existing author, or the id already exists
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             examples:
+ *               missingField:
+ *                 summary: Missing field
+ *                 value:
+ *                   message: title is required
+ *               unknownAuthor:
+ *                 summary: Unknown author
+ *                 value:
+ *                   message: authorId does not match an existing author
+ *               duplicateId:
+ *                 summary: Duplicate id
+ *                 value:
+ *                   message: A book with this id already exists
+ *       500:
+ *         description: Unable to create book
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             example:
+ *               message: Internal server error
+ */
+router.post('/books', createBookHandler);
+
+/**
+ * @openapi
+ * /books/{id}:
+ *   put:
+ *     tags:
+ *       - Books
+ *     summary: Update a book by id
+ *     description: Updates the book whose `id` field matches the path parameter. The `authorId` must match the `id` of an existing author.
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         description: The book's `id` field (not the MongoDB `_id`).
+ *         schema:
+ *           type: string
+ *         example: b1
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - authorId
+ *               - title
+ *               - publicationDate
+ *             properties:
+ *               authorId:
+ *                 type: string
+ *               title:
+ *                 type: string
+ *               publicationDate:
+ *                 type: string
+ *                 format: date
+ *           example:
+ *             authorId: a2
+ *             title: Updated Book Title
+ *             publicationDate: "2026-02-20"
+ *     responses:
+ *       200:
+ *         description: Book updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Book'
+ *       400:
+ *         description: A required field is missing or the authorId does not match an existing author
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             examples:
+ *               missingField:
+ *                 summary: Missing field
+ *                 value:
+ *                   message: title is required
+ *               unknownAuthor:
+ *                 summary: Unknown author
+ *                 value:
+ *                   message: authorId does not match an existing author
+ *       404:
+ *         description: Book not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             example:
+ *               message: Book not found
+ *       500:
+ *         description: Unable to update book
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             example:
+ *               message: Internal server error
+ */
+router.put('/books/:id', updateBookHandler);
+
+/**
+ * @openapi
+ * /books/{id}:
+ *   delete:
+ *     tags:
+ *       - Books
+ *     summary: Delete a book by id
+ *     description: Deletes the book whose `id` field matches the path parameter.
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         description: The book's `id` field (not the MongoDB `_id`).
+ *         schema:
+ *           type: string
+ *         example: b1
+ *     responses:
+ *       204:
+ *         description: Book deleted successfully
+ *       404:
+ *         description: Book not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             example:
+ *               message: Book not found
+ *       500:
+ *         description: Unable to delete book
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *             example:
+ *               message: Internal server error
+ */
+router.delete('/books/:id', deleteBookHandler);
 
 /**
  * @openapi

@@ -14,6 +14,31 @@ const getBookById = async (bookId) => {
   return book;
 };
 
+const createBook = async (book) => {
+  const db = getDb();
+  const collection = db.collection('books');
+  await collection.insertOne(book);
+  return book;
+};
+
+const updateBook = async (bookId, updates) => {
+  const db = getDb();
+  const collection = db.collection('books');
+  const book = await collection.findOneAndUpdate(
+    { id: bookId },
+    { $set: updates },
+    { returnDocument: 'after' }
+  );
+  return book;
+};
+
+const deleteBook = async (bookId) => {
+  const db = getDb();
+  const collection = db.collection('books');
+  const result = await collection.deleteOne({ id: bookId });
+  return result;
+};
+
 const createBookIndexes = async () => {
   const db = getDb();
   const collection = db.collection('books');
@@ -21,4 +46,4 @@ const createBookIndexes = async () => {
   await collection.createIndex({ authorId: 1 });
 };
 
-export { getAllBooks, getBookById, createBookIndexes };
+export { getAllBooks, getBookById, createBook, updateBook, deleteBook, createBookIndexes };
